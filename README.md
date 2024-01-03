@@ -1,9 +1,13 @@
-# AVR KS0108 Library  
+# PIC16/18 KS0108 Library / XC8 compiler
 
 ---
 
 **Description:**  
-A library to control KS0108-based GLCD (128x64) using AVR microcontrollers.  
++ A library to control KS0108-based GLCD (128x64) using PIC microcontrollers.
++ This is conversion from efthymios-ks/AVR-KS0108 library to be compatible with PIC uC using XC8 compiler.
++ I fixed some problems with this library. Major issue was that funciton repsonsible of displaying fonts have problem.
+
+
 + **The display pins can be configured to any pin in any port in any sequence.**  
 + Instead of using delays, it checks for the busy flag status of the display.
 + Functions include:  
@@ -26,10 +30,7 @@ _You can edit the **GLCD_BufferWrite** and **GLCD_BufferRead** functions to chan
   + Display auxiliary data: 9 bytes  
   
 **Compiler:**  
-AVR-GCC  
-  
-**Optimization Level:**  
-Optimize (-O1)  
+XC8
   
 --- 
 **How to create a new font:**  
@@ -50,6 +51,6 @@ Optimize (-O1)
 
 ---
   
-![picture alt](https://raw.githubusercontent.com/efthymios-ks/AVR-KS0108-Library/master/Demonstration.png)
+![picture alt](https://raw.githubusercontent.com/kwiecinski/PIC-XC8-KS0108-NT7108-LCD-LIBRARY/master/doc/Demonstration.png)
   
 --- 
