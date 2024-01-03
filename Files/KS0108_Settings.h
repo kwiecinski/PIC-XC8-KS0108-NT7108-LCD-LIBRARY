@@ -1,4 +1,4 @@
-﻿#ifndef KS0108_SETTINGS_H_INCLUDED
+#ifndef KS0108_SETTINGS_H_INCLUDED
 #define KS0108_SETTINGS_H_INCLUDED
 /*
 ||
@@ -14,23 +14,23 @@
 
 //----- Configuration -------------//
 //Chip Enable Pin
-#define GLCD_Active_Low		0
+#define GLCD_ACTIVE_LOW		1
 
 //GLCD pins					PORT, PIN
-#define GLCD_D0				A, 0
-#define GLCD_D1				A, 1
-#define GLCD_D2				A, 2
-#define GLCD_D3				A, 3
-#define GLCD_D4				A, 4
-#define GLCD_D5				A, 5
-#define GLCD_D6				A, 6
-#define GLCD_D7				A, 7
+#define GLCD_D0				E, 0
+#define GLCD_D1				E, 1
+#define GLCD_D2				E, 2
+#define GLCD_D3				E, 3
+#define GLCD_D4				E, 4
+#define GLCD_D5				E, 5
+#define GLCD_D6				E, 6
+#define GLCD_D7				E, 7
 
-#define GLCD_DI				B, 0
-#define GLCD_RW				B, 1
-#define GLCD_EN				B, 2
-#define GLCD_CS1			B, 3
-#define GLCD_CS2			B, 4
-#define GLCD_RST			B, 5
+#define GLCD_DI				D, 4
+#define GLCD_RW				D, 3
+#define GLCD_EN				D, 7
+#define GLCD_CS1			D, 0
+#define GLCD_CS2			D, 1
+#define GLCD_RST			D, 2
 //---------------------------------//
 #endif

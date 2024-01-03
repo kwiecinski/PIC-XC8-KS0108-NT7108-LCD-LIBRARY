@@ -1,4 +1,9 @@
+#include <xc.h>
+#include <stdio.h>
 #include "KS0108.h"
+#include "KS0108_Settings.h"
+#include "IO_Macros.h"
+#define _XTAL_FREQ 24000000
 
 //----- Auxiliary data ------//
 uint8_t __GLCD_Buffer[__GLCD_Screen_Width][__GLCD_Screen_Lines];
@@ -8,7 +13,7 @@ GLCD_t __GLCD;
 #define __GLCD_XtoChip(X)		((X < (__GLCD_Screen_Width / __GLCD_Screen_Chips)) ? Chip_1 : Chip_2)
 #define __GLCD_Min(X, Y)		((X < Y) ? X : Y)
 #define __GLCD_AbsDiff(X, Y)	((X > Y) ? (X - Y) : (Y - X))
-#define __GLCD_Swap(X, Y)		do { typeof(X) t = X; X = Y; Y = t; } while (0)
+#define __GLCD_Swap(X, Y)		do{ uint8_t t = X; X = Y; Y = t; }while(0)
 //---------------------------//
 
 //----- Prototypes ----------------------------//
@@ -86,6 +91,8 @@ void GLCD_Setup(void)
 	PinMode(GLCD_D6, Output);
 	PinMode(GLCD_D7, Output);
 
+    
+    
 	PinMode(GLCD_CS1, Output);
 	PinMode(GLCD_CS2, Output);
 	PinMode(GLCD_DI, Output);
@@ -98,9 +105,9 @@ void GLCD_Setup(void)
 	DigitalWrite(GLCD_EN, Low);
 	
 	DigitalWrite(GLCD_RST, Low);	//!RST
-	_delay_ms(5);
+	__delay_ms(5);
 	DigitalWrite(GLCD_RST, High);
-	_delay_ms(50);
+	__delay_ms(50);
 
 	//Initialize chips
 	GLCD_SendCommand(__GLCD_Command_On, Chip_All);
@@ -135,6 +142,31 @@ void GLCD_InvertMode(void)
 		__GLCD.Mode = GLCD_Inverted;
 }
 
+void GLDC_ReadStatus(void)
+{
+
+	GLCD_SelectChip(Chip_2);
+	PinMode(GLCD_D7, Input);
+    PinMode(GLCD_D4, Input);
+    PinMode(GLCD_D5, Input);
+    
+	DigitalWrite(GLCD_DI, Low);
+	DigitalWrite(GLCD_RW, High);
+	DigitalWrite(GLCD_EN, Low);
+	__delay_us(__GLCD_Pulse_En);
+	
+	DigitalWrite(GLCD_EN, High);
+
+    printf("BUSY: %X \n\r",DigitalRead(GLCD_D7));
+    printf("RESET: %X \n\r",DigitalRead(GLCD_D4));
+    printf("ON/OFF: %X \n\r",DigitalRead(GLCD_D5));
+    DigitalWrite(GLCD_EN, Low);
+	__delay_us(__GLCD_Pulse_En<<3);
+	DigitalWrite(GLCD_RW, Low);
+
+    
+    
+}
 void GLCD_Clear(void)
 {
 	GLCD_FillScreen(__GLCD.Mode == GLCD_Non_Inverted ? GLCD_White : GLCD_Black);
@@ -317,7 +349,7 @@ void GLCD_DrawBitmap(const uint8_t *Bitmap, uint8_t Width, const uint8_t Height,
 		for (i = 0 ; i < Width ; i++)
 		{
 			//Read byte
-			data = pgm_read_byte(&(Bitmap[bmpRead++]));
+			data = (Bitmap[bmpRead++]);
 			
 			//Shift byte
 			data <<= overflow;
@@ -325,7 +357,7 @@ void GLCD_DrawBitmap(const uint8_t *Bitmap, uint8_t Width, const uint8_t Height,
 			//Merge byte with previous one
 			if (j > 0)
 			{
-				dataPrev = pgm_read_byte(&(Bitmap[bmpReadPrev++]));
+				dataPrev = &(Bitmap[bmpReadPrev++]);
 				dataPrev >>= __GLCD_Screen_Line_Height - overflow;
 				data |= dataPrev;
 			}
@@ -363,7 +395,7 @@ void GLCD_DrawBitmap(const uint8_t *Bitmap, uint8_t Width, const uint8_t Height,
 			data = GLCD_BufferRead(__GLCD.X, __GLCD.Y);
 			
 			//Merge byte with previous one
-			dataPrev = pgm_read_byte(&(Bitmap[bmpReadPrev++]));
+			dataPrev = Bitmap[bmpReadPrev++];
 			dataPrev >>= __GLCD_Screen_Line_Height - overflow;
 			data |= dataPrev;
 			
@@ -758,7 +790,7 @@ void GLCD_InvertRect(uint8_t X1, uint8_t Y1, uint8_t X2, uint8_t Y2)
 	}
 }
 
-void GLCD_SetFont(const uint8_t *Name, const uint8_t Width, const uint8_t Height, enum PrintMode_t Mode)
+void GLCD_SetFont(const uint8_t *Name, const uint8_t Width, const uint8_t Height, enum PrintMode_t Mode, enum OperatingMode_t Invert)
 {
 	if ((Width < __GLCD_Screen_Width) && (Height < __GLCD_Screen_Height) && ((Mode == GLCD_Overwrite) || (Mode == GLCD_Merge)))
 	{
@@ -770,16 +802,17 @@ void GLCD_SetFont(const uint8_t *Name, const uint8_t Width, const uint8_t Height
 		__GLCD.Font.Height = Height;
 		
 		//Update lines required for a character to be fully displayed
-		__GLCD.Font.Lines = (Height - 1) / __GLCD_Screen_Line_Height + 1;
+		__GLCD.Font.Lines = Height / __GLCD_Screen_Line_Height  + (( (Height % __GLCD_Screen_Line_Height) != 0) ? 1 : 0);
 		
 		//Update blending mode
 		__GLCD.Font.Mode = Mode;
+        __GLCD.Font.Invert = Invert;
 	}
 }
 
 uint8_t GLCD_GetWidthChar(const char Character)
 {
-	return (pgm_read_byte(&(__GLCD.Font.Name[(Character - 32) * (__GLCD.Font.Width * __GLCD.Font.Lines + 1)])));
+	return ((__GLCD.Font.Name[(Character - 32) * (__GLCD.Font.Width * __GLCD.Font.Lines + 1)]));
 }
 
 uint16_t GLCD_GetWidthString(const char *Text)
@@ -795,141 +828,219 @@ uint16_t GLCD_GetWidthString(const char *Text)
 uint16_t GLCD_GetWidthString_P(const char *Text)
 {
 	uint16_t width = 0;
-	char r = pgm_read_byte(Text++);
+	char r = Text++;
 	while (r)
 	{
 		width += GLCD_GetWidthChar(r);
-		r = pgm_read_byte(Text++);
+		r = Text++;
 	}
 	
 	return width;
 }
 
+void printBinary(unsigned char data) {
+    for (int i = 7; i >= 0; i--) {
+        printf("%d", (data >> i) & 1);
+    }
+    printf("\n\r");
+}
+
+
+
 void GLCD_PrintChar(char Character)
 {
-	uint16_t fontStart, fontRead, fontReadPrev;
-	uint8_t x, y, y2, i, j, width, lines, overflow, data, dataPrev;
-	fontStart = fontRead = fontReadPrev = x = y = y2 = i = j = width = lines = overflow = data = dataPrev = 0;
+  
+    unsigned int fontStart, fontRead;
+	unsigned char  x, y, y2, i, j, width, lines, overflow, data, data_next;
+	fontStart = fontRead = x = y = y2 = i = j = width = lines = overflow = data = data_next = 0;
 	
 	//#1 - Save current position
+    //As the Y coordinate, you operate here on real px coordinates 
+    //but to the LCD controller you provide the page number, not which pixel
+    //this is done later in GLCD_BufferWrite function, so don't need to worry
+    
+    //printf("character: %c \n\r",Character);
+    
+    
 	x = __GLCD.X;
 	y = y2 = __GLCD.Y;
 	
 	//#2 - Remove leading empty characters
-	Character -= 32;														//32 is the ASCII of the first printable character
+	Character -= 32;														    //32 is the ASCII of the first printable character
 	
 	//#3 - Find the start of the character in the font array
 	fontStart = Character * (__GLCD.Font.Width * __GLCD.Font.Lines + 1);		//+1 due to first byte of each array line being the width
-	
+	//for example for 5x8 font 5 is width and 8 is height.
+    //in font table each character is stored in 5 bytes + 1 byte is width information
+    
+    //why we need to read width information if we declare it in GLCD_SetFont function?
+    //this is because in bigger fonts like Tahoma 11x13 width is not always constant
+    //for examle "I" is 2pix wide but "W" is 9 pix wide. For large fonts to avoid creating 
+    //empty spaces between characters, this information is used/
+    
+    
 	//#4 - Update width - First byte of each line is the width of the character
-	width = pgm_read_byte(&(__GLCD.Font.Name[fontStart++]));
-	data = __GLCD.X + width;											//"data" is used temporarily
+	width = __GLCD.Font.Name[fontStart++];
+    
+	data = __GLCD.X + width;	//"data" is used temporarily
 	//If character exceed screen bounds, reduce
 	if (data >= __GLCD_Screen_Width)
+    {
 		width -= data-__GLCD_Screen_Width;
-	
+	}
+    
+    
 	//#5 - Update lines
-	lines = __GLCD.Font.Lines;
-	data = __GLCD.Y / __GLCD_Screen_Line_Height + lines;				//"data" is used temporarily
+    //calculate how many PAGES are needed to display sign
+    //__GLCD.Font.Lines is calculated in GLCD_SetWidth function:
+    //expression: __GLCD.Font.Lines = Height / __GLCD_Screen_Line_Height  + (( (Height % __GLCD_Screen_Line_Height) != 0) ? 1 : 0);
+    //Height - height of sign declared in GLCD_SetFont function
+    //__GLCD_Screen_Line_Height - how many pixels are in page (usually 8bits for page)
+    
+    //for e.g.
+    //now let assume we start our sing in X=0,Y=0
+    //how many PAGES are needed to display sign?
+    //for 5x8 we need 1 page , for 11x13 we need 2 page
+ 
+    //but what hapend if our sign is on position X=0,Y=3?
+    //we need to check if front height is within page limits
+    //if not we need to devide character into two or more pages
+    //for e.g
+    //for 5x8 character on position X=0,Y=3
+    //character will take pixels from Y=3 to Y=10.
+    //page is within Y=0 to Y=7 range so character will use two pages
+    
+    overflow = __GLCD.Y % __GLCD_Screen_Line_Height;
+  
+    lines=__GLCD.Font.Lines;
+    if(((__GLCD.Y % __GLCD_Screen_Line_Height)+__GLCD.Font.Height) > (__GLCD.Font.Lines*__GLCD_Screen_Line_Height) )
+    {
+          lines= __GLCD.Font.Lines + 1;
+    }          
+             
 	//If character exceed screen bounds, reduce
-	if (data > __GLCD_Screen_Lines)
-		lines -= data - __GLCD_Screen_Lines;
+	data = __GLCD.Y / __GLCD_Screen_Line_Height + lines;				//"data" is used temporarily
 	
-	//#6 - Calculate overflowing bits
-	overflow = __GLCD.Y % __GLCD_Screen_Line_Height;
-		
-	//#7 - Print the character
-	//Scan the lines needed
-	for (j = 0 ; j < lines ; j++)
+	if (data > __GLCD_Screen_Lines)
+    {
+		lines -= data - __GLCD_Screen_Lines;
+    }
+	
+
+///////#7 - Print the character/////////////////////////////////////////////////
+  
+        //printf("lines: %d \n\r",lines);
+       // printf("j: %d \n\r",j);
+       // printf("overflow: %d \n\r",overflow);
+        //printf("__GLCD.Font.Lines start: %d \n\r",__GLCD.Font.Lines);
+     
+
+    fontRead = fontStart;
+    
+    
+    for (j = 0 ; j < lines ; j++)
 	{
 		//Go to the start of the line
 		GLCD_GotoXY(x, y);
-		
-		//Update the indices for reading the line
-		fontRead = fontStart + j;
-		fontReadPrev = fontRead - 1;
-
+ 
 		//Scan bytes of selected line
 		for (i = 0 ; i < width ; i++)
 		{
-			//Read byte
-			data = pgm_read_byte(&(__GLCD.Font.Name[fontRead]));
-			
-			//Shift byte
-			data <<= overflow;
-			
-			//Merge byte with previous one
-			if (j > 0)
-			{
-				dataPrev = pgm_read_byte(&(__GLCD.Font.Name[fontReadPrev]));
-				dataPrev >>= __GLCD_Screen_Line_Height - overflow;
-				data |= dataPrev;
-				fontReadPrev += __GLCD.Font.Lines;
-			}
-			//Edit byte depending on the mode
+            if (j == 0)
+            {
+                if(__GLCD.Font.Invert == GLCD_Inverted)
+                {
+                    data = ~(__GLCD.Font.Name[fontRead + __GLCD.Font.Lines*i]);
+                }else
+                {
+                    data = (__GLCD.Font.Name[fontRead + __GLCD.Font.Lines*i]);
+                }
+       
+                data <<= overflow;
+
+                if(__GLCD.Font.Invert == GLCD_Inverted)
+                {
+                    data |= (255 >>  (8-overflow));
+                }
+                
+            }else
+            {
+                if(__GLCD.Font.Invert == GLCD_Inverted)
+                {
+                    data = ~(__GLCD.Font.Name[fontRead + __GLCD.Font.Lines*i + j -1]);
+                }else
+                {
+                    data = (__GLCD.Font.Name[fontRead + __GLCD.Font.Lines*i + j -1]);  
+                }
+
+               data >>= 8 - overflow; 
+
+
+
+               if(__GLCD.Font.Lines > 1)
+               {
+                    if(__GLCD.Font.Invert == GLCD_Inverted)
+                    {
+                        data_next = ~(__GLCD.Font.Name[fontRead + __GLCD.Font.Lines*i + j]);
+                    }else
+                    {
+                        data_next = (__GLCD.Font.Name[fontRead  + __GLCD.Font.Lines*i + j]);    
+                    }
+
+                    data_next <<= overflow;
+                    data |= data_next;
+               }
+
+
+                if(__GLCD.Font.Invert == GLCD_Inverted && (j == (lines-1)) && overflow > 0)
+                {
+                    data |= (255 << overflow);
+                }  
+                                        
+            } //if(j==0) else end
+            
+//////////////////Edit byte depending on the mode///////////////////////////////
 			if (__GLCD.Font.Mode == GLCD_Merge)
-				data |= GLCD_BufferRead(__GLCD.X, __GLCD.Y);
-			
-			//Send byte
+            {
+                if(__GLCD.Font.Invert == GLCD_Inverted)
+                {
+                   data &= GLCD_BufferRead(__GLCD.X, __GLCD.Y);
+                }else
+                {
+                    data |= GLCD_BufferRead(__GLCD.X, __GLCD.Y);
+                }
+            }
+            
+			// Send byte
 			GLCD_BufferWrite(__GLCD.X++, __GLCD.Y, data);
-			
-			//Increase index
-			fontRead += __GLCD.Font.Lines;
-		}
-		//Send an empty column of 1px in the end
+		
+        }  // for (j = 0 ; j < lines ; j++) 
+        
+        
+/////////////////Send an empty column of 1px in the end/////////////////////////
 		if (__GLCD.Font.Mode == GLCD_Overwrite)
-			data = GLCD_White;
+        {
+            if(__GLCD.Font.Invert == GLCD_Inverted)
+            {
+                data = GLCD_Black;
+            }else
+            {
+                data = GLCD_White;
+            }
+        }
 		else
+        {
 			data = GLCD_BufferRead(__GLCD.X, __GLCD.Y);
+        }
+////////////////////////////////////////////////////////////////////////////////
+
 		GLCD_BufferWrite(__GLCD.X, __GLCD.Y, data);
 		
 		//Increase line counter
 		y += __GLCD_Screen_Line_Height;
 	}
-
-	//#8 - Update last line, if needed
-	if (lines > 1)
-	{
-		//Go to the start of the line
-		GLCD_GotoXY(x, y);
-		
-		//Update the index for reading the last printed line
-		fontReadPrev = fontStart + j - 1;
-
-		//Scan bytes of selected line
-		for (i = 0 ; i < width ; i++)
-		{
-			//Read byte
-			data = GLCD_BufferRead(__GLCD.X, __GLCD.Y);
-			
-			//Merge byte with previous one
-			dataPrev = pgm_read_byte(&(__GLCD.Font.Name[fontReadPrev]));
-			dataPrev >>= __GLCD_Screen_Line_Height - overflow;
-			data |= dataPrev;
-			
-			//Edit byte depending on the mode
-			if (__GLCD.Font.Mode == GLCD_Merge)
-				data |= GLCD_BufferRead(__GLCD.X, __GLCD.Y);
-			
-			//Send byte
-			GLCD_BufferWrite(__GLCD.X, __GLCD.Y, data);
-
-			//Increase index
-			fontReadPrev += __GLCD.Font.Lines;
-		}
-		//Send an empty column of 1px in the end
-		if (__GLCD.Font.Mode == GLCD_Overwrite)
-			data = GLCD_White;
-		else if (__GLCD.Font.Mode == GLCD_Merge)
-			data = GLCD_BufferRead(__GLCD.X, __GLCD.Y);
-		else
-			data = ~GLCD_BufferRead(__GLCD.X, __GLCD.Y);
-		GLCD_BufferWrite(__GLCD.X++, __GLCD.Y,data);
-	}
-
-	
-	//Move cursor to the end of the printed character
-	GLCD_GotoXY(x + width + 1, y2);
+    
+    GLCD_GotoXY(x + width + 1, y2);    
 }
 
 void GLCD_PrintString(const char *Text)
@@ -945,14 +1056,14 @@ void GLCD_PrintString(const char *Text)
 
 void GLCD_PrintString_P(const char *Text)
 {
-	char r = pgm_read_byte(Text++);
+	char r = Text++;
 	while(r)
 	{
 		if ((__GLCD.X + __GLCD.Font.Width) >= __GLCD_Screen_Width)
 			break;
 
 		GLCD_PrintChar(r);
-		r = pgm_read_byte(Text++);
+		r = Text++;
 	}
 }
 
@@ -1030,18 +1141,18 @@ static void GLCD_WaitBusy(enum Chip_t Chip)
 	DigitalWrite(GLCD_DI, Low);
 	DigitalWrite(GLCD_RW, High);
 	DigitalWrite(GLCD_EN, Low);
-	_delay_us(__GLCD_Pulse_En);
+	__delay_us(__GLCD_Pulse_En);
 	
 	//Send Enable pulse and wait till busy flag goes Low
 	do
 	{
 		DigitalWrite(GLCD_EN, High);
-		_delay_us(__GLCD_Pulse_En);
+		__delay_us(__GLCD_Pulse_En);
 		
 		status = DigitalRead(GLCD_D7) << 7;
 		
 		DigitalWrite(GLCD_EN, Low);
-		_delay_us(__GLCD_Pulse_En<<3);
+		__delay_us(__GLCD_Pulse_En<<3);
 	}
 	while(BitCheck(status, __GLCD_BUSY_FLAG));
 
@@ -1127,7 +1238,7 @@ static void __GLCD_GotoY(const uint8_t Y)
 	}
 }
 
-static inline void GLCD_DrawHLine(uint8_t X1, uint8_t X2, const uint8_t Y, enum Color_t Color)
+static  void GLCD_DrawHLine(uint8_t X1, uint8_t X2, const uint8_t Y, enum Color_t Color)
 {
 	if (X1 > X2)
 		__GLCD_Swap(X1, X2);
@@ -1139,7 +1250,7 @@ static inline void GLCD_DrawHLine(uint8_t X1, uint8_t X2, const uint8_t Y, enum 
 	}
 }
 
-static inline void GLCD_DrawVLine(uint8_t Y1, uint8_t Y2, const uint8_t X, enum Color_t Color)
+static void GLCD_DrawVLine(uint8_t Y1, uint8_t Y2, const uint8_t X, enum Color_t Color)
 {
 	if (Y1 > Y2)
 		__GLCD_Swap(Y1, Y2);
@@ -1147,12 +1258,12 @@ static inline void GLCD_DrawVLine(uint8_t Y1, uint8_t Y2, const uint8_t X, enum 
 	GLCD_SetPixels(X, Y1, X, Y2, Color);
 }
 
-static inline void Pulse_En(void)
+static void Pulse_En(void)
 {
 	DigitalWrite(GLCD_EN, High);
-	_delay_us(__GLCD_Pulse_En);
+	__delay_us(__GLCD_Pulse_En);
 	DigitalWrite(GLCD_EN, Low);
-	_delay_us(__GLCD_Pulse_En);
+	__delay_us(__GLCD_Pulse_En);
 }
 
 static void Int2bcd(int32_t Value, char BCD[])
@@ -1254,3 +1365,35 @@ static void Int2bcd(int32_t Value, char BCD[])
 	BCD[i] = '\0';
 }
 //-----------------------------//
+
+void GLCD_Render_printf(void)
+{
+	unsigned int i, j,temp;
+	
+	for (j = 0 ; j < 8 ; j += __GLCD_Screen_Line_Height)
+	{
+
+		
+
+				for (int bit = 0; bit < 8; bit++) 
+				{
+
+					for (i = 0 ; i < 32 ; i++)  //
+					{
+						temp = (GLCD_BufferRead(i, j) >> bit) & 0x01;
+								
+						if(temp == 1)
+						{
+							printf("1 ");
+						}else
+						{
+							printf(". ");
+						}
+					}
+					printf("\n\r");
+				}
+
+
+		printf("\n\r");
+	}
+}

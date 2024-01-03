@@ -4,7 +4,7 @@
 //GLCD FontName: Font5x8
 //GLCD FontSize: 5x8
 
-const uint8_t Font5x8[] PROGMEM = 
+const uint8_t Font5x8[] = 
 {
 	0x05, 0x00, 0x00, 0x00, 0x00, 0x00,      // Code for char
 	0x05, 0x00, 0x00, 0x5F, 0x00, 0x00,      // Code for char !

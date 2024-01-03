@@ -2,27 +2,24 @@
 #define KS0108_H_INCLUDED
 /*
 ||
-||  Filename:	 		KS0108.h
-||  Title: 			    KS0108 Driver
-||  Author: 			Efthymios Koktsidis
+||  	Filename:	 		KS0108.h
+||  	Title: 			    KS0108 Driver
+||  	Author: 			Efthymios Koktsidis
 ||	Email:				efthymios.ks@gmail.com
-||  Compiler:		 	AVR-GCC
+||  	Compiler:		 	AVR-GCC
 ||	Description:
 ||	This library can drive KS0108 based GLCD.
-||
 */
 
-//----- Headers ------------//
-#include <util/delay.h>
-#include <avr/io.h>
-#include <avr/pgmspace.h>
 
+//----- Headers ------------//
+#include <xc.h>
 #include "IO_Macros.h"
 #include "KS0108_Settings.h"
 //--------------------------//
 
 //----- Auxiliary data ---------------------------//
-#define __GLCD_Pulse_En					1
+#define __GLCD_Pulse_En					10
 
 #define __GLCD_Command_On				0x3F
 #define __GLCD_Command_Off				0x3E
@@ -72,6 +69,7 @@ typedef struct
 	uint8_t Height;
 	uint8_t Lines;
 	enum PrintMode_t Mode;
+    enum OperatingMode_t Invert;
 }Font_t;
 
 typedef struct
@@ -89,7 +87,7 @@ void GLCD_SendData(const uint8_t Data, enum Chip_t Chip);
 void GLCD_Setup(void);
 void GLCD_Render(void);
 void GLCD_InvertMode(void);
-
+void GLCD_SendData(const uint8_t Data, enum Chip_t Chip);
 void GLCD_Clear(void);
 void GLCD_ClearLine(const uint8_t Line);
 void GLCD_GotoX(const uint8_t X);
@@ -99,7 +97,7 @@ void GLCD_GotoLine(const uint8_t line);
 uint8_t GLCD_GetX(void);
 uint8_t GLCD_GetY(void);
 uint8_t GLCD_GetLine(void);
-
+void GLDC_ReadStatus(void);
 void GLCD_SetPixel(const uint8_t X, const uint8_t Y, enum Color_t Color);
 void GLCD_SetPixels(uint8_t X1, uint8_t Y1, uint8_t X2, uint8_t Y2, enum Color_t Color);
 
@@ -119,7 +117,7 @@ void GLCD_FillCircle(const uint8_t CenterX, const uint8_t CenterY, const uint8_t
 void GLCD_InvertScreen(void);
 void GLCD_InvertRect(uint8_t X1, uint8_t Y1, uint8_t X2, uint8_t Y2);
 
-void GLCD_SetFont(const uint8_t *Name, const uint8_t Width, const uint8_t Height, enum PrintMode_t Mode);
+void GLCD_SetFont(const uint8_t *Name, const uint8_t Width, const uint8_t Height, enum PrintMode_t Mode, enum OperatingMode_t Invert);
 uint8_t GLCD_GetWidthChar(const char Character);
 uint16_t GLCD_GetWidthString(const char *Text);
 uint16_t GLCD_GetWidthString_P(const char *Text);
@@ -128,5 +126,7 @@ void GLCD_PrintString(const char *Text);
 void GLCD_PrintString_P(const char *Text);
 void GLCD_PrintInteger(const int32_t Value);
 void GLCD_PrintDouble(double Value, const uint32_t Tens);
+
+void GLCD_Render_printf(void);
 //-----------------------------------------------------------------------------//
 #endif
